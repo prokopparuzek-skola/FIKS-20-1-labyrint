@@ -120,74 +120,86 @@ func MMove(maze []vertex, C, start, end int) (move int) {
 	return -1
 }
 
-func dfs(maze []vertex, s, C, monster int, work []int, nav [][]int) (out string, E bool) {
-	defer fmt.Println(")")
-	fmt.Println("(", s, maze[s], monster, work[s])
+func dfs(maze []vertex, s, C, monster int, work []map[int]bool, nav [][]int, depth int, min *int) (out string, E bool) {
+	//defer fmt.Println(")")
+	//fmt.Println("(", s, maze[s], monster, work[s], depth, *min)
+	if depth >= *min {
+		return "cenok ej ot kat", false
+	}
 	var mnext int
 	var near bool = true
-	work[s]++
+	work[s][monster] = true
 	if maze[s].END {
+		*min = depth
 		return "", true
 	}
 	if monster == s {
-		work[s]--
-		return "m", false
+		return "cenok ej ot kat", false
 	}
-	if maze[s].up && work[s-C] == 0 && s-C != monster { // UP
+	if maze[s].up && s-C != monster { // UP
 		mnext = nav[monster][s-C]
-		steps, e := dfs(maze, s-C, C, mnext, work, nav)
-		if e {
-			if len(out) == 0 || len(out)-1 > len(steps) {
-				out = steps + "^"
-				E = true
+		if !work[s-C][mnext] || depth <= *min && *min != 90000 {
+			steps, e := dfs(maze, s-C, C, mnext, work, nav, depth+1, min)
+			if e {
+				if len(out) == 0 || len(out)-1 > len(steps) {
+					out = steps + "^"
+					E = true
+				}
 			}
+			near = false
 		}
-		near = false
 	}
-	if maze[s].right && work[s+1] == 0 && s+1 != monster { // RIGHT
+	if maze[s].right && s+1 != monster { // RIGHT
 		mnext = nav[monster][s+1]
-		steps, e := dfs(maze, s+1, C, mnext, work, nav)
-		if e {
-			if len(out) == 0 || len(out)-1 > len(steps) {
-				out = steps + ">"
-				E = true
+		if !work[s+1][mnext] || depth <= *min && *min != 90000 {
+			steps, e := dfs(maze, s+1, C, mnext, work, nav, depth+1, min)
+			if e {
+				if len(out) == 0 || len(out)-1 > len(steps) {
+					out = steps + ">"
+					E = true
+				}
 			}
+			near = false
 		}
-		near = false
 	}
-	if maze[s].down && work[s+C] == 0 && s+C != monster { // DOWN
+	if maze[s].down && s+C != monster { // DOWN
 		mnext = nav[monster][s+C]
-		steps, e := dfs(maze, s+C, C, mnext, work, nav)
-		if e {
-			if len(out) == 0 || len(out)-1 > len(steps) {
-				out = steps + "v"
-				E = true
+		if !work[s+C][mnext] || depth <= *min && *min != 90000 {
+			steps, e := dfs(maze, s+C, C, mnext, work, nav, depth+1, min)
+			if e {
+				if len(out) == 0 || len(out)-1 > len(steps) {
+					out = steps + "v"
+					E = true
+				}
 			}
+			near = false
 		}
-		near = false
 	}
-	if maze[s].left && work[s-1] == 0 && s-1 != monster { // LEFT
+	if maze[s].left && s-1 != monster { // LEFT
 		mnext = nav[monster][s-1]
-		steps, e := dfs(maze, s-1, C, mnext, work, nav)
-		if e {
-			if len(out) == 0 || len(out)-1 > len(steps) {
-				out = steps + "<"
-				E = true
+		if !work[s-1][mnext] || depth <= *min && *min != 90000 {
+			steps, e := dfs(maze, s-1, C, mnext, work, nav, depth+1, min)
+			if e {
+				if len(out) == 0 || len(out)-1 > len(steps) {
+					out = steps + "<"
+					E = true
+				}
 			}
+			near = false
 		}
-		near = false
 	}
-	if work[s] <= 1 && !near && !E && out != "m" {
+	if !near {
 		mnext = nav[monster][s]
-		steps, e := dfs(maze, s, C, mnext, work, nav)
-		if e {
-			if len(out) == 0 || len(out)-1 > len(steps) {
-				out = steps + "o"
-				E = true
+		if !work[s][mnext] || depth <= *min && *min != 90000 {
+			steps, e := dfs(maze, s, C, mnext, work, nav, depth+1, min)
+			if e {
+				if len(out) == 0 || len(out)-1 > len(steps) {
+					out = steps + "o"
+					E = true
+				}
 			}
 		}
 	}
-	work[s]--
 	if E {
 		return
 	} else {
@@ -212,6 +224,14 @@ func navigateMonster(maze []vertex, C int) (nav [][]int) {
 	return
 }
 
+func makeWork(l int) (work []map[int]bool) {
+	work = make([]map[int]bool, l)
+	for i := range work {
+		work[i] = map[int]bool{}
+	}
+	return
+}
+
 func solve(maze []vertex, start int, C int, monster int) (out string) {
 	var rev string
 	if monster == -1 {
@@ -223,9 +243,10 @@ func solve(maze []vertex, start int, C int, monster int) (out string) {
 			if t := bfs(maze, monster, C); t[0] == 'c' {
 				rev = bfs(maze, start, C)
 			} else {
-				work := make([]int, len(maze))
+				var minDepth int = 90000
+				work := makeWork(len(maze))
 				nav := navigateMonster(maze, C)
-				rev, _ = dfs(maze, start, C, monster, work, nav)
+				rev, _ = dfs(maze, start, C, monster, work, nav, 0, &minDepth)
 			}
 		}
 	}
@@ -308,10 +329,6 @@ func main() {
 	}
 	for i, _ := range outs {
 		<-end[i]
-		if outs[i] == "m" {
-			fmt.Println("tak to je konec")
-		} else {
-			fmt.Println(outs[i])
-		}
+		fmt.Println(outs[i])
 	}
 }
